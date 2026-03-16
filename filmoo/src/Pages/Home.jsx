@@ -1,85 +1,87 @@
-import { useEffect, useState } from 'react'
-
-import axios from 'axios'
-import Card from '../component/Card'
-import Pagination from '../component/Pagination.jsx'
+import { useEffect, useState } from 'react';
+import Card from '../component/Card';
+import Pagination from '../component/Pagination.jsx';
+import { getPopularMovies } from '../services/api';
 
 function Home() {
+  const [movie, setMovie] = useState([]);
+  const [couneter, setCounter] = useState(1);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const [movie, setMovie] = useState([])
-  const [couneter, setCounter] = useState(1)
-  const [search, setSearch] = useState('')
-
+  // Debounce search input
   useEffect(() => {
-    const getMovies = async () => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Fetch movies
+  useEffect(() => {
+    const fetchMovies = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        const response = await axios.get(`https://api.themoviedb.org/3/movie/popular?language=en-US&page=${couneter}`, {
-          headers: {
-            accept: 'application/json',
-            Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwMWQzMDE0ODk4ODg0NTk0ZmE1YjNiOWM3N2FhYTUxMCIsIm5iZiI6MTc1ODkwMDkxNi45MzI5OTk4LCJzdWIiOiI2OGQ2YjJiNGZkNDlkZDk2YTc2OTc0ZmUiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.L-Ety4mC9N5s5ecV9bPmFNnSyKroVqOCY8U49n3vQf0'
-          }
-        })
-        // console.log(response);
-        setMovie(response.data.results)
+        const data = await getPopularMovies(couneter);
+        setMovie(data.results);
+      } catch (err) {
+        console.error(err);
+        setError('Failed to fetch movies. Please try again later.');
+      } finally {
+        setLoading(false);
       }
-      catch (error) {
-        console.error(error);
-      }
-    }
-    getMovies()
-  }, [couneter]
-  )
+    };
+    fetchMovies();
+  }, [couneter]);
 
-
-
-const filtredMovie = movie.filter((m)=> m.original_title.toLowerCase().includes(search.toLowerCase()))
-
-  console.log(filtredMovie);
+  // Filter movies
+  const filtredMovie = movie.filter((m) =>
+    m.original_title.toLowerCase().includes(debouncedSearch.toLowerCase())
+  );
 
   return (
-    <div className='bg-[#060D17] h-full'>
-      <div>
-        
-        <input className='mx-30 my-[20px] p-2 rounded-[10px] outline-none bg-amber-50' type="text" 
-        value={search}
-        placeholder='Search' onChange={(event) => { 
-          setSearch(event.target.value)
-        }} />
-      </div>
-          
-      <div className="bg-[#060D17] flex flex-wrap gap-5 justify-center items-center p-5">
-        {/* <button className='bg-white' onClick={()=> setCounter(couneter+1)}>  next </button> */}
-        {filtredMovie.map((item) => {
-          return (
-            <div>
-              <Card item={item} />
-            </div>
-          )
-        }
-        )}
+    <div className='bg-[#060D17] min-h-screen'>
+      <div className="flex justify-center pt-8 pb-4">
+        <input
+          className='p-3 rounded-xl outline-none bg-gray-800 text-white w-full max-w-md focus:ring-2 focus:ring-blue-500 transition-shadow'
+          type="text"
+          value={search}
+          placeholder='Search movies...'
+          onChange={(event) => setSearch(event.target.value)}
+        />
       </div>
 
-        <div>
-        <Pagination item={couneter} setCounter={setCounter} />
+      {/* Error State */}
+      {error && <p className="text-red-500 text-center mt-10">{error}</p>}
+
+      {/* Loading State */}
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
         </div>
+      ) : (
+        <div className="flex flex-wrap gap-6 justify-center items-center p-6">
+          {filtredMovie.length > 0 ? (
+            filtredMovie.map((item) => (
+              <div key={item.id}>
+                <Card item={item} />
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-400 text-lg mt-10">No movies found.</p>
+          )}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!loading && !error && (
+        <div className="pb-10">
+          <Pagination item={couneter} setCounter={setCounter} />
+        </div>
+      )}
     </div>
-
-    // <div>
-
-
-    // {
-    //   movie.map ( (m) => {
-
-    //     return (
-    //     <div>
-    //           <img src={`https://image.tmdb.org/t/p/w500/${m.poster_path}`} alt="" />
-    //     </div>
-    //     )
-    //   }
-    // )
-    // }
-    // </div>
-  )
+  );
 }
 
-export default Home
+export default Home;
